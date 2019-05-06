@@ -3,6 +3,8 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var admin = require('firebase-admin');
+var serviceAccount = require('./firebase/maps-ext-47253069-firebase-adminsdk-8yu6h-44d3c3b03c.json');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -36,6 +38,12 @@ app.use(function(err, req, res, next) {
   // render the error page
   res.status(err.status || 500);
   res.render('error');
+});
+
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://maps-ext-47253069.firebaseio.com"
 });
 
 module.exports = app;

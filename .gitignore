@@ -85,3 +85,5 @@ typings/
 
 .idea*
 bin/*
+
+firebase/*.json
