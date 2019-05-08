@@ -84,6 +84,5 @@ typings/
 .dynamodb/
 
 .idea*
-bin/*
 
 firebase/*.json
