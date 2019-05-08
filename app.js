@@ -114,6 +114,16 @@ function loadData() {
     }, this);
 }
 
+function notifyForEventOnLocation(locationId, locationName, timeBefore, showType) {
+    let title = "מטס עצמאות 2019"
+    let text;
+    if (showType === "flight") text = `בעוד ${timeBefore} דקות יחלוף המטס מעל יישוב ${locationName}`;
+    else if (showType === "airShow") text = `בעוד ${timeBefore} דקות יחל מופע אווירי ב${locationName}`;
+    else if (showType === "aerobaticShow") text = `בעוד ${timeBefore} דקות יחל מופע אווירובטי ב${locationName}`;
+
+    sendNotification(title, body, "point-" + locationId);
+}
+
 function scheduleAllNotifications() {
     var timeToFlightStart = functions.realActualStartTime - new Date() - 5 * 60 * 1000;
     if (timeToFlightStart > 0) {
@@ -122,25 +132,69 @@ function scheduleAllNotifications() {
         }, timeToFlightStart);
     }
 
-    aircrafts.forEach(aircraft => {
-        aircraft.path.forEach(location => {
-            var fullLocation = functions.locations[location.pointId];
-            fullLocation.aircrafts.forEach(item => {
-                if (item.aerobatic || item.parachutist || item.specialInPath === "מופעים אוויריים" || item.specialInAircraft === "מופעים אוויריים") {
-                    var timeToNotify = functions.convertTime(item.date, item.time) - new Date() + functions.actualStartTime - functions.plannedStartTime - 5 * 60 * 1000;
-                    var isAerobatic = (item.aerobatic || item.specialInAircraft === "מופעים אוויריים" || item.specialInPath === "מופעים אוויריים");
-                    var notificationBody =
-                        `${functions.getEventName(isAerobatic)}
-                         ${functions.getEventDescription(isAerobatic, fullLocation.pointName, 5)}`;
-                    if (timeToNotify > 0) {
-                        setTimeout(() => {
-                            sendNotification(functions.getEventName(item.aerobatic), notificationBody, `point-${fullLocation.pointId}`);
-                        }, timeToNotify)
-                    }
-                }
-            });
-        });
-    });
+    functions.locations.forEach((loc) => {
+        let firstAirShowHandler;
+        let firstAerobaticShowHandler;
+        let firstFlightHandler;
+
+        if (loc.firstAerobaticShow) {
+            let timeout = loc.firstAerobaticShow - new Date().getTime() - timeBefore * 60 * 1000;
+            if (timeout > 0) {
+                firstAerobaticShowHandler = setTimeout(() => {
+                    notifyForEventOnLocation(loc.pointId, loc.pointName, timeBefore, "aerobaticShow");
+                }, timeout);
+            }
+            console.log("registered notification for aerobatic show at " + loc.pointName + " within:" + timeout / 1000 + " seconds");
+        }
+
+        if (loc.firstAirShow) {
+            let timeout = loc.firstAirShow - new Date().getTime() - timeBefore * 60 * 1000;
+            if (timeout > 0) {
+                firstAirShowHandler = setTimeout(() => {
+                    notifyForEventOnLocation(loc.pointId, loc.pointName, timeBefore, "airShow");
+                }, timeout);
+            }
+            console.log("registered notification for air show at " + loc.pointName + " within:" + timeout / 1000 + " seconds");
+        }
+
+        if (loc.firstFlight) {
+            let timeout = loc.firstFlight - new Date().getTime() - timeBefore * 60 * 1000;
+            if (timeout > 0) {
+                firstFlightHandler = setTimeout(() => {
+                    notifyForEventOnLocation(loc.pointId, loc.pointName, timeBefore, "flight");
+                }, timeout);
+            }
+            console.log("registered notification for flight at " + loc.pointName + " within:" + timeout / 1000 + " seconds");
+        }
+
+        if (firstAirShowHandler || firstFlightHandler || firstAerobaticShowHandler) {
+            let registeredLocation = {
+                pointId: locationId,
+                firstAirShowHandlerId: firstAirShowHandler,
+                firstFlightHandlerId: firstFlightHandler,
+                firstAerobaticShowHandlerId: firstAerobaticShowHandler
+            };
+        }
+    })
+    // aircrafts.forEach(aircraft => {
+    //     aircraft.path.forEach(location => {
+    //         var fullLocation = functions.locations[location.pointId];
+    //         fullLocation.aircrafts.forEach(item => {
+    //             if (item.aerobatic || item.parachutist || item.specialInPath === "מופעים אוויריים" || item.specialInAircraft === "מופעים אוויריים") {
+    //                 var timeToNotify = functions.convertTime(item.date, item.time) - new Date() + functions.actualStartTime - functions.plannedStartTime - 5 * 60 * 1000;
+    //                 var isAerobatic = (item.aerobatic || item.specialInAircraft === "מופעים אוויריים" || item.specialInPath === "מופעים אוויריים");
+    //                 var notificationBody =
+    //                     `${functions.getEventName(isAerobatic)}
+    //                      ${functions.getEventDescription(isAerobatic, fullLocation.pointName, 5)}`;
+    //                 if (timeToNotify > 0) {
+    //                     setTimeout(() => {
+    //                         sendNotification(functions.getEventName(item.aerobatic), notificationBody, `point-${fullLocation.pointId}`);
+    //                     }, timeToNotify)
+    //                 }
+    //             }
+    //         });
+    //     });
+    // });
 }
 
 loadData();

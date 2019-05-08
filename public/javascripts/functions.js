@@ -24,20 +24,19 @@ module.exports = class Functions {
                 parsedData = JSON.parse(data.substr(1, data.length));
             }
 
-
             callback(parsedData);
         });
     }
 
     loadAircrafts(callback) {
         // request.get({url: 'https://www.matas-iaf.com/data/aircrafts-info.json', json:true}, function (error, response, aircraftInfo) {
-        this.getData('https://www.matas-iaf.com/data/aircrafts-info.json', parsedInfo => {
+        this.getData('https://matas-dev.azurewebsites.net/data/aircrafts-info.json', parsedInfo => {
             parsedInfo.aircraftTypes.forEach(function (aircraftTypeInfo) {
                 this.aircraftTypesInfo[aircraftTypeInfo.aircraftTypeId] = aircraftTypeInfo;
             }, this);
 
             // load all aircrafts
-            this.getData('https://www.matas-iaf.com/data/aircrafts.json', flightData => {
+            this.getData('https://matas-dev.azurewebsites.net/data/aircrafts.json', flightData => {
                 this.aircrafts = flightData.aircrafts;
                 this.startDate = flightData.startDate;
                 this.plannedStartTime = this.convertTime(this.startDate, flightData.plannedStartTime);
