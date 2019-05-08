@@ -121,7 +121,7 @@ function scheduleAllNotifications() {
 }
 
 loadData();
-
+console.log("Data loaded");
 
 // app.get('/subscribeToTopic/:token/:topic', req, res => {
 //     var token = req.token;
