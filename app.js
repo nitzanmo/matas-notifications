@@ -1,4 +1,3 @@
-
 const Functions = require('./public/javascripts/functions');
 var createError = require('http-errors');
 var express = require('express');
@@ -51,13 +50,20 @@ admin.initializeApp({
 var points = new Set();
 var aircrafts;
 var functions = new Functions();
-const GENERAL_TOPIC = "generalTopic";
+const GENERAL_TOPIC = "users";
 
 function sendeNotification(title, body, topic) {
     var message = {
-        notification: {
-            title: title,
-            body: body
+        webpush: {
+            notification: {
+                title: title,
+                body: body,
+                dir: 'rtl',
+                lang: 'he',
+                vibrate: [300, 100, 400],
+                data: {url: 'https://matas-iaf.com'},
+                icon: '../icons/logo192x192.png',
+            }
         },
         topic: topic
     };
@@ -72,7 +78,6 @@ function sendeNotification(title, body, topic) {
             console.log('Error sending message:', error);
         });
 }
-
 
 function loadData() {
     functions.loadAircrafts((pAircrafts) => {
@@ -89,7 +94,6 @@ function loadData() {
 
 function scheduleAllNotifications() {
     var timeToFlightStart = functions.realActualStartTime - new Date() - 5 * 60 * 1000;
-
     if (timeToFlightStart > 0) {
         setTimeout(() => {
             sendeNotification("בוקר כחול לבן!", "המטס מתחיל עוד חמש דקות, בואו לחגוג איתנו!", GENERAL_TOPIC);
