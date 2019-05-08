@@ -1,5 +1,5 @@
-import {loadAircrafts, loadCategories, loadRoutes, updateLocationsMap} from "./public/javascripts/functions";
 
+const Functions = require('./public/javascripts/functions');
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -50,32 +50,14 @@ admin.initializeApp({
 
 var points = new Set();
 var aircrafts;
+var functions = new Functions();
+const GENERAL_TOPIC = "generalTopic";
 
-function scheduleAllNotifications() {
-    loadAircrafts((pAircrafts) => {
-        aircrafts = pAircrafts;
-        loadRoutes((routes) => {
-            this.routes = routes;
-            loadCategories(function () {
-                updateLocationsMap(aircrafts);
-            });
-        }, this);
-    }, this);
-
-
-}
-
-scheduleAllNotifications();
-
-
-// Just to test, notifying all of the cities
-points.forEach(pointId => {
-    // The topic name can be optionally prefixed with "/topics/".
-    var topic = `point-${pointId}`;
-
+function sendeNotification(title, body, topic) {
     var message = {
         notification: {
-            title: 'Hello'
+            title: title,
+            body: body
         },
         topic: topic
     };
@@ -89,7 +71,63 @@ points.forEach(pointId => {
         .catch((error) => {
             console.log('Error sending message:', error);
         });
-});
+}
 
+
+function loadData() {
+    functions.loadAircrafts((pAircrafts) => {
+        aircrafts = pAircrafts;
+        functions.loadRoutes((routes) => {
+            this.routes = routes;
+            functions.loadCategories(function () {
+                functions.updateLocationsMap(aircrafts);
+                scheduleAllNotifications();
+            });
+        }, this);
+    }, this);
+}
+
+function scheduleAllNotifications() {
+    var timeToFlightStart = functions.realActualStartTime - new Date() - 5 * 60 * 1000;
+
+    if (timeToFlightStart > 0) {
+        setTimeout(() => {
+            sendeNotification("בוקר כחול לבן!", "המטס מתחיל עוד חמש דקות, בואו לחגוג איתנו!", GENERAL_TOPIC);
+        }, timeToFlightStart);
+    }
+
+    aircrafts.forEach(aircraft => {
+        aircraft.path.forEach(location => {
+            var fullLocation = functions.locations[location.pointId];
+            fullLocation.aircrafts.forEach(item => {
+                if (item.aerobatic || item.parachutist || item.specialInPath === "מופעים אוויריים" || item.specialInAircraft === "מופעים אוויריים") {
+                    var timeToNotify = functions.convertTime(item.date, item.time) - new Date() + functions.actualStartTime - functions.plannedStartTime - 5 * 60 * 1000;
+                    var isAerobatic = (item.aerobatic || item.specialInAircraft === "מופעים אוויריים" || item.specialInPath === "מופעים אוויריים");
+                    var notificationBody =
+                        `${functions.getEventName(isAerobatic)}
+                         ${functions.getEventDescription(isAerobatic, fullLocation.pointName, 5)}`;
+                    if (timeToNotify > 0) {
+                        setTimeout(() => {
+                            sendeNotification(functions.getEventName(item.aerobatic), notificationBody, `point-${fullLocation.pointId}`);
+                        }, timeToNotify)
+                    }
+                }
+            });
+        });
+    });
+    console.log("finito");
+}
+
+loadData();
+
+//
+//
+// // Just to test, notifying all of the cities
+// points.forEach(pointId => {
+//     // The topic name can be optionally prefixed with "/topics/".
+//     var topic = `point-${pointId}`;
+//
+// });
+//
 
 module.exports = app;

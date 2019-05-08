@@ -1,50 +1,70 @@
 var request = require('request');
 
-module.exports = {
-    aircraftTypesInfo : {},
-    aircrafts : [],
-    startDate,
-    actualStartTime,
-    realActualStartTime,
-    aircraftData : null,
-    locations : [],
-    loadedRoutes,
-    categories,
+module.exports = class Functions {
+    constructor() {
+        this.aircraftTypesInfo = {};
+        this.aircrafts = [];
+        this.startDate = null;
+        this.actualStartTime = null;
+        this.realActualStartTime = null;
+        this.plannedStartTime = null;
+        this.plannedEndTime = null;
+        this.aircraftData = null;
+        this.locations = [];
+        this.loadedRoutes = null;
+        this.categories = [];
+    }
 
-    loadAircrafts : function (callback) {
-        request.get('https://www.matas-iaf.com/data/aircrafts-info.json', function (aircraftInfo) {
-            // load aircraft type info into a map
-            aircraftInfo.aircraftTypes.forEach(function (aircraftTypeInfo) {
+    getData(url, callback) {
+        request.get({url: url, json: true}, (error, response, data) => {
+            //JSON.parse(data);
+            var parsedData = data;
+
+            if (data.constructor === String) {
+                parsedData = JSON.parse(data.substr(1, data.length));
+            }
+
+
+            callback(parsedData);
+        });
+    }
+
+    loadAircrafts(callback) {
+        // request.get({url: 'https://www.matas-iaf.com/data/aircrafts-info.json', json:true}, function (error, response, aircraftInfo) {
+        this.getData('https://www.matas-iaf.com/data/aircrafts-info.json', parsedInfo => {
+            parsedInfo.aircraftTypes.forEach(function (aircraftTypeInfo) {
                 this.aircraftTypesInfo[aircraftTypeInfo.aircraftTypeId] = aircraftTypeInfo;
             }, this);
 
             // load all aircrafts
-            request.get('https://www.matas-iaf.com/data/aircrafts.json', function (flightData) {
+            this.getData('https://www.matas-iaf.com/data/aircrafts.json', flightData => {
                 this.aircrafts = flightData.aircrafts;
                 this.startDate = flightData.startDate;
+                this.plannedStartTime = this.convertTime(this.startDate, flightData.plannedStartTime);
+                this.plannedEndTime = this.convertTime(this.startDate, flightData.plannedEndTime);
 
                 // merge info from aircraft type info
-                aircrafts.forEach(function (aircraft) {
+                this.aircrafts.forEach(function (aircraft) {
                     if (aircraft.aircraftTypeId !== undefined) {
                         // copy all of the information from aircraft type info
-                        var aircraftTypeInfo = aircraftTypesInfo[aircraft.aircraftTypeId];
+                        var aircraftTypeInfo = this.aircraftTypesInfo[aircraft.aircraftTypeId];
                         for (var field in aircraftTypeInfo)
                             aircraft[field] = aircraftTypeInfo[field];
                     }
 
                     // sort aircraft path by time
-                    aircraft.path.sort((point1, point2) => convertTime(point1.date, point1.time) - convertTime(point2.date, point2.time));
+                    aircraft.path.sort((point1, point2) => this.convertTime(point1.date, point1.time) - this.convertTime(point2.date, point2.time));
                 }, this);
 
                 this.aircraftData = flightData;
                 this.loadActualStartTime();
-                callback(aircrafts);
+                callback(this.aircrafts);
             });
         });
-    },
+    }
 
-    convertTime: function (dateString, timeString) {
-        if (!dateString) dateString = startDate;
+    convertTime(dateString, timeString) {
+        if (!dateString) dateString = this.startDate;
         var year = dateString.substr(0, 4);
         var month = dateString.substr(5, 2);
         var day = dateString.substr(8, 2);
@@ -52,24 +72,24 @@ module.exports = {
         var minutes = timeString.substr(3, 2);
         var seconds = timeString.substr(6, 2);
         return new Date(year, month - 1, day, hours, minutes, seconds).getTime();
-    },
+    }
 
-    loadActualStartTime : function() {
-        this.actualStartTime = this.convertTime(startDate, aircraftData.actualStartTime);
-        this.realActualStartTime = actualStartTime;
-    },
+    loadActualStartTime() {
+        this.actualStartTime = this.convertTime(this.startDate, this.aircraftData.actualStartTime);
+        this.realActualStartTime = this.actualStartTime;
+    }
 
-    loadRoutes: function(callback) {
-        request.get('https://www.matas-iaf.com/data/routes.json', function (routes) {
+    loadRoutes(callback) {
+        this.getData('https://www.matas-iaf.com/data/routes.json', routes => {
             routes.routes.forEach(function (route) {
                 this.updateLocations(route);
             }, this);
             this.loadedRoutes = routes.routes;
             callback(routes.routes);
         });
-    },
+    }
 
-    updateLocations: function(route) {
+    updateLocations(route) {
         route.points.forEach(function (point) {
             if (this.locations[point.pointId] === undefined) {
                 this.locations[point.pointId] = point;
@@ -78,9 +98,9 @@ module.exports = {
                 this.locations[point.pointId].color = route.color;
             }
         }, this);
-    },
+    }
 
-    updateLocationsMap: function(aircrafts) {
+    updateLocationsMap(aircrafts) {
         // build locations map for all of the aircraft paths
         aircrafts.forEach(function (aircraft) {
             aircraft.path.forEach(function (location) {
@@ -99,8 +119,8 @@ module.exports = {
                     date: location.date
                 };
 
-                location.hideAircrafts = locations[location.pointId].hideAircrafts;
-                var location = locations[location.pointId];
+                location.hideAircrafts = this.locations[location.pointId].hideAircrafts;
+                var location = this.locations[location.pointId];
                 // if (displayAircraftShows && (item.aerobatic || item.parachutist || item.specialInPath === "מופעים אוויריים" || item.specialInAircraft === "מופעים אוויריים")) {
                 // var timeout = convertTime(item.date, item.time) - getCurrentTime() + actualStartTime - plannedStartTime;
                 // var notificationBody = `${getEventName(item.aerobatic)} ${getEventDescription(item.aerobatic, location.pointName, 5)}`;
@@ -112,9 +132,9 @@ module.exports = {
 
         // sort each location points by time
         this.locations.forEach(function (loc) {
-            loc.aircrafts.sort(function (item1, item2) {
-                var keyA = convertTime(item1.date, item1.time),
-                    keyB = convertTime(item2.date, item2.time);
+            loc.aircrafts.sort((item1, item2) => {
+                var keyA = this.convertTime(item1.date, item1.time),
+                    keyB = this.convertTime(item2.date, item2.time);
 
                 // Compare the 2 times
                 if (keyA < keyB) return -1;
@@ -123,13 +143,22 @@ module.exports = {
             });
         }, this);
 
-        return locations;
-    },
+        return this.locations;
+    }
 
-    loadCategories: function(callback) {
-        request.get('https://www.matas-iaf.com/data/categories.json', function (pCategories) {
+    loadCategories(callback) {
+        this.getData('https://www.matas-iaf.com/data/categories.json', pCategories => {
             this.categories = pCategories;
             callback();
         });
+    }
+
+    getEventName(isAerobatics) {
+        return isAerobatics ? 'מופע אווירובטי' : 'הצנחות';
+    }
+
+    getEventDescription(isAerobatics, locationName, minutes) {
+        var desc = isAerobatics ? 'יחל ב' : 'יחלו ב';
+        return `${desc}${locationName} בעוד ${minutes} דקות`;
     }
 };
