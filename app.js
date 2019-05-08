@@ -1,5 +1,6 @@
 const Functions = require('./public/javascripts/functions');
 var createError = require('http-errors');
+const md5sum = (str) => require('crypto').createHash('md5').update(str).digest('hex');
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
@@ -8,7 +9,6 @@ var admin = require('firebase-admin');
 var serviceAccount = require('./firebase/maps-ext-47253069-firebase-adminsdk-8yu6h-44d3c3b03c.json');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
-
 var app = express();
 
 // view engine setup
@@ -40,18 +40,41 @@ app.use(function (err, req, res, next) {
     res.render('error');
 });
 
-
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://maps-ext-47253069.firebaseio.com"
 });
+
+function subscribeToTopic(token, topicName) {
+    return admin.messaging().subscribeToTopic(token, topicName);
+}
+
+function unsubscribeToTopic(token, topicName) {
+    return admin.messaging().unsubscribeFromTopic(token, topicName);
+}
+
+function sendTopic(token, topicName, data) {
+    if(md5sum(data.password) !== "e4fc9b9b8cf1eaf0ddb823b787040ee0") {
+        throw new Error('Failed');
+    }
+
+    const payload = {
+        topic: topicName,
+        notification: {
+            title: data.title,
+            body: data.body
+        }
+    };
+
+    return admin.messaging().send(payload);
+}
 
 var points = new Set();
 var aircrafts;
 var functions = new Functions();
 const GENERAL_TOPIC = "users";
 
-function sendeNotification(title, body, topic) {
+function sendNotification(title, body, topic) {
     var message = {
         webpush: {
             notification: {
@@ -95,7 +118,7 @@ function scheduleAllNotifications() {
     var timeToFlightStart = functions.realActualStartTime - new Date() - 5 * 60 * 1000;
     if (timeToFlightStart > 0) {
         setTimeout(() => {
-            sendeNotification("בוקר כחול לבן!", "המטס מתחיל עוד חמש דקות, בואו לחגוג איתנו!", GENERAL_TOPIC);
+            sendNotification("בוקר כחול לבן!", "המטס מתחיל עוד חמש דקות, בואו לחגוג איתנו!", GENERAL_TOPIC);
         }, timeToFlightStart);
     }
 
@@ -111,7 +134,7 @@ function scheduleAllNotifications() {
                          ${functions.getEventDescription(isAerobatic, fullLocation.pointName, 5)}`;
                     if (timeToNotify > 0) {
                         setTimeout(() => {
-                            sendeNotification(functions.getEventName(item.aerobatic), notificationBody, `point-${fullLocation.pointId}`);
+                            sendNotification(functions.getEventName(item.aerobatic), notificationBody, `point-${fullLocation.pointId}`);
                         }, timeToNotify)
                     }
                 }
@@ -123,10 +146,6 @@ function scheduleAllNotifications() {
 loadData();
 console.log("Data loaded");
 
-// app.get('/subscribeToTopic/:token/:topic', req, res => {
-//     var token = req.token;
-//     res.sendStatus(200)
-// });
 //
 // // Just to test, notifying all of the cities
 // points.forEach(pointId => {
@@ -136,4 +155,7 @@ console.log("Data loaded");
 // });
 //
 
-module.exports = app;
+module.exports.app = app;
+module.exports.subscribeToTopic = subscribeToTopic;
+module.exports.unsubscribeToTopic = unsubscribeToTopic;
+module.exports.sendTopic = sendTopic;
