@@ -125,9 +125,8 @@ loadData();
 
 // app.get('/subscribeToTopic/:token/:topic', req, res => {
 //     var token = req.token;
-//     res.send()
+//     res.sendStatus(200)
 // });
-//
 //
 // // Just to test, notifying all of the cities
 // points.forEach(pointId => {
