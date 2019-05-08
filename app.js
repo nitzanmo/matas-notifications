@@ -1,3 +1,5 @@
+import {loadAircrafts, loadCategories, loadRoutes, updateLocationsMap} from "./public/javascripts/functions";
+
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -6,7 +8,6 @@ var logger = require('morgan');
 var admin = require('firebase-admin');
 var serviceAccount = require('./firebase/maps-ext-47253069-firebase-adminsdk-8yu6h-44d3c3b03c.json');
 var request = require('request');
-
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
@@ -48,43 +49,46 @@ admin.initializeApp({
 });
 
 var points = new Set();
+var aircrafts;
 
-var registrationToken = 'YOUR_REGISTRATION_TOKEN';
+function scheduleAllNotifications() {
+    loadAircrafts((pAircrafts) => {
+        aircrafts = pAircrafts;
+        loadRoutes((routes) => {
+            this.routes = routes;
+            loadCategories(function () {
+                updateLocationsMap(aircrafts);
+            });
+        }, this);
+    }, this);
 
-request.get('https://www.matas-iaf.com/data/aircrafts.json', function (error, response, body) {
-    if (!error && response.statusCode == 200) {
-        var aircraft = JSON.parse(body).aircrafts;
-        var currentPath;
+
+}
+
+scheduleAllNotifications();
 
 
-        // TODO: read more data to find out when are shows and notify about it
-        aircraft.forEach(aircraft => {
-            aircraft.path.forEach(point => points.add(point.pointId));
+// Just to test, notifying all of the cities
+points.forEach(pointId => {
+    // The topic name can be optionally prefixed with "/topics/".
+    var topic = `point-${pointId}`;
+
+    var message = {
+        notification: {
+            title: 'Hello'
+        },
+        topic: topic
+    };
+
+    // Send a message to devices subscribed to the provided topic.
+    admin.messaging().send(message)
+        .then((response) => {
+            // Response is a message ID string.
+            console.log('Successfully sent message:', response);
+        })
+        .catch((error) => {
+            console.log('Error sending message:', error);
         });
-
-        // Just to test, notifying all of the cities
-        points.forEach(pointId => {
-            // The topic name can be optionally prefixed with "/topics/".
-            var topic = `point-${pointId}`;
-
-            var message = {
-                notification: {
-                    title: 'Hello'
-                },
-                topic: topic
-            };
-
-            // Send a message to devices subscribed to the provided topic.
-            admin.messaging().send(message)
-                .then((response) => {
-                    // Response is a message ID string.
-                    console.log('Successfully sent message:', response);
-                })
-                .catch((error) => {
-                    console.log('Error sending message:', error);
-                });
-        });
-    }
 });
 
 
