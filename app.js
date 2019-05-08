@@ -145,6 +145,8 @@ function scheduleAllNotifications() {
 
 loadData();
 console.log("Data loaded");
+sendeNotification("יפפייי, שירות ההתראות עובד", "המטס מתחיל עוד חמש דקות, בואו לחגוג איתנו!", GENERAL_TOPIC);
+
 
 //
 // // Just to test, notifying all of the cities
