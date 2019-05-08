@@ -6,7 +6,6 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var admin = require('firebase-admin');
 var serviceAccount = require('./firebase/maps-ext-47253069-firebase-adminsdk-8yu6h-44d3c3b03c.json');
-var request = require('request');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
@@ -119,11 +118,15 @@ function scheduleAllNotifications() {
             });
         });
     });
-    console.log("finito");
 }
 
 loadData();
 
+
+// app.get('/subscribeToTopic/:token/:topic', req, res => {
+//     var token = req.token;
+//     res.send()
+// });
 //
 //
 // // Just to test, notifying all of the cities
