@@ -122,6 +122,8 @@ function scheduleAllNotifications() {
 
 loadData();
 console.log("Data loaded");
+sendeNotification("יפפייי, שירות ההתראות עובד", "המטס מתחיל עוד חמש דקות, בואו לחגוג איתנו!", GENERAL_TOPIC);
+
 
 // app.get('/subscribeToTopic/:token/:topic', req, res => {
 //     var token = req.token;
